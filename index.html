@@ -413,11 +413,12 @@
         }
 
         // แปลงลิงก์ Google Drive View ให้เป็น Direct Download Image เพื่อให้แสดงใน <img> ได้
-        function getDirectImageUrl(driveUrl) {
+function getDirectImageUrl(driveUrl) {
             if(!driveUrl) return "";
             let match = driveUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
             if(match && match[1]) {
-                return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+                // เปลี่ยนมาใช้ Thumbnail API เลี่ยงการโดนบล็อกของ Google Drive
+                return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w400`;
             }
             return driveUrl;
         }
@@ -438,12 +439,22 @@
                 if(p.Latitude && p.Longitude) {
                     let navUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.Latitude},${p.Longitude}`;
                     
-                    // แทรกรูป 2 รูปแรก (ใช้ฟังก์ชันแปลงลิงก์ Direct Link)
+                    // แทรกรูป 2 รูปแรก พร้อมครอบลิงก์ <a> ให้กดดูรูปเต็มได้
                     let imgHtml = "";
                     if(p.Photo_1 || p.Photo_2) {
                         imgHtml += "<div class='mt-2 mb-2 d-flex justify-content-between gap-1'>";
-                        if(p.Photo_1) imgHtml += `<img src="${getDirectImageUrl(p.Photo_1)}" class="map-img" onerror="this.style.display='none'">`;
-                        if(p.Photo_2) imgHtml += `<img src="${getDirectImageUrl(p.Photo_2)}" class="map-img" onerror="this.style.display='none'">`;
+                        if(p.Photo_1) {
+                            imgHtml += `<a href="${p.Photo_1}" target="_blank" class="w-50 text-decoration-none">
+                                            <img src="${getDirectImageUrl(p.Photo_1)}" class="map-img w-100" style="object-fit:cover; height:90px; border-radius:8px;" 
+                                            onerror="this.outerHTML='<div class=\\'btn btn-sm btn-outline-secondary w-100 h-100 d-flex align-items-center justify-content-center\\'><i class=\\'bi bi-image\\'></i> ดูรูป 1</div>'">
+                                        </a>`;
+                        }
+                        if(p.Photo_2) {
+                            imgHtml += `<a href="${p.Photo_2}" target="_blank" class="w-50 text-decoration-none">
+                                            <img src="${getDirectImageUrl(p.Photo_2)}" class="map-img w-100" style="object-fit:cover; height:90px; border-radius:8px;" 
+                                            onerror="this.outerHTML='<div class=\\'btn btn-sm btn-outline-secondary w-100 h-100 d-flex align-items-center justify-content-center\\'><i class=\\'bi bi-image\\'></i> ดูรูป 2</div>'">
+                                        </a>`;
+                        }
                         imgHtml += "</div>";
                     }
 
@@ -457,7 +468,6 @@
                 }
             });
         }
-
         async function loadUsers() {
             let res = await callAPI({ action: "getUsers" });
             if(res.status === "success") {
