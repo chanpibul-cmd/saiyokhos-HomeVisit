@@ -3,162 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบเยี่ยมบ้าน</title>
+    <title>Dashboard - ระบบเยี่ยมบ้าน</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .card { border: none; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .nav-pills .nav-link { border-radius: 0; color: #6c757d; font-weight: 500; padding: 12px; }
-        .nav-pills .nav-link.active { background-color: transparent; color: #0d6efd; border-bottom: 3px solid #0d6efd; }
-        .form-control { border-radius: 8px; }
-        .btn { border-radius: 8px; font-weight: 500; }
-        #map { height: 60vh; width: 100%; border-radius: 12px; }
+        :root { --primary-color: #2c3e50; --accent-color: #3498db; }
+        body { background-color: #f4f7f6; font-family: 'Kanit', sans-serif; }
+        .card-stat { border: none; border-radius: 15px; transition: transform 0.3s; }
+        .card-stat:hover { transform: translateY(-5px); }
+        .nav-custom { background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .nav-pills .nav-link { color: #666; border-radius: 10px; margin: 0 5px; font-weight: 500; }
+        .nav-pills .nav-link.active { background-color: var(--accent-color); color: white; }
         .hidden { display: none !important; }
-        #app-container { display: none; }
+        #map { height: 50vh; border-radius: 15px; }
+        .stat-icon { font-size: 2.5rem; opacity: 0.3; position: absolute; right: 15px; bottom: 10px; }
     </style>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500&display=swap" rel="stylesheet">
 </head>
 <body>
 
-    <div id="login-container" class="container mt-5 pt-5">
+    <div id="dashboard-section" class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="fw-bold text-dark"><i class="bi bi-speedometer2 text-primary"></i> Dashboard สรุปงาน</h3>
+            <button class="btn btn-outline-primary shadow-sm" onclick="showLogin()"><i class="bi bi-lock-fill"></i> สำหรับเจ้าหน้าที่</button>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="card card-stat bg-white p-4 shadow-sm h-100 position-relative">
+                    <div class="text-muted small uppercase fw-bold">ผู้ป่วยในระบบทั้งหมด</div>
+                    <h1 class="display-4 fw-bold text-primary" id="stat-patients">0</h1>
+                    <i class="bi bi-people stat-icon"></i>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card card-stat bg-white p-4 shadow-sm h-100 position-relative">
+                    <div class="text-muted small uppercase fw-bold">บันทึกการเยี่ยมรวม</div>
+                    <h1 class="display-4 fw-bold text-success" id="stat-visits">0</h1>
+                    <i class="bi bi-card-checklist stat-icon"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-body">
+                <h6 class="mb-3 text-muted"><i class="bi bi-clock-history"></i> รายการเยี่ยมบ้านล่าสุด (5 รายการ)</h6>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr><th>HN</th><th>วันที่</th><th>รายละเอียด</th></tr>
+                        </thead>
+                        <tbody id="recent-visit-table">
+                            <tr><td colspan="3" class="text-center py-4">กำลังโหลดข้อมูล...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="login-section" class="container mt-5 hidden">
         <div class="row justify-content-center">
-            <div class="col-md-4 col-sm-8">
-                <div class="card p-4">
+            <div class="col-md-4">
+                <div class="card p-4 shadow-lg border-0 rounded-4">
                     <div class="card-body">
-                        <h4 class="text-center mb-4"><i class="bi bi-house-heart-fill text-primary"></i> เยี่ยมบ้าน</h4>
-                        <input type="text" id="username" class="form-control mb-3 p-3" placeholder="ชื่อผู้ใช้งาน">
-                        <input type="password" id="password" class="form-control mb-4 p-3" placeholder="รหัสผ่าน">
-                        <button class="btn btn-primary w-100 p-2" onclick="login()">เข้าสู่ระบบ</button>
+                        <div class="text-center mb-4">
+                            <div class="bg-primary text-white d-inline-block p-3 rounded-circle mb-3">
+                                <i class="bi bi-shield-lock-fill fs-3"></i>
+                            </div>
+                            <h5>เจ้าหน้าที่เข้าสู่ระบบ</h5>
+                        </div>
+                        <input type="text" id="username" class="form-control mb-3 p-3 bg-light border-0" placeholder="Username">
+                        <input type="password" id="password" class="form-control mb-4 p-3 bg-light border-0" placeholder="Password">
+                        <button class="btn btn-primary w-100 p-3 fw-bold rounded-3" onclick="login()">เข้าสู่ระบบ</button>
+                        <button class="btn btn-link w-100 mt-2 text-muted text-decoration-none" onclick="hideLogin()">กลับหน้า Dashboard</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="app-container" class="container-fluid p-0">
-        <ul class="nav nav-pills nav-fill bg-white shadow-sm mb-3" id="myTab" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="patient-tab" data-bs-toggle="tab" data-bs-target="#patient"><i class="bi bi-person-plus"></i> ผู้ป่วย</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="visit-tab" data-bs-toggle="tab" data-bs-target="#visit"><i class="bi bi-journal-medical"></i> บันทึก</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="map-tab" data-bs-toggle="tab" data-bs-target="#mapView" onclick="initMap()"><i class="bi bi-geo-alt"></i> แผนที่</button>
-            </li>
-            <li class="nav-item hidden" id="admin-nav" role="presentation">
-                <button class="nav-link text-danger" id="admin-tab" data-bs-toggle="tab" data-bs-target="#admin" onclick="loadUsers()"><i class="bi bi-shield-lock"></i> จัดการผู้ใช้</button>
-            </li>
+    <div id="app-container" class="container-fluid p-0 hidden">
+        <ul class="nav nav-pills nav-fill bg-white p-2 shadow-sm sticky-top mb-3" role="tablist">
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#patient"><i class="bi bi-person-plus"></i> ลงทะเบียน</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#visit"><i class="bi bi-journal-check"></i> บันทึกเยี่ยม</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#mapView" onclick="initMap()"><i class="bi bi-geo-alt"></i> แผนที่</button></li>
+            <li class="nav-item hidden" id="admin-nav"><button class="nav-link text-danger" data-bs-toggle="tab" data-bs-target="#admin" onclick="loadUsers()"><i class="bi bi-gear"></i> ตั้งค่า</button></li>
+            <li class="nav-item"><button class="nav-link text-muted" onclick="location.reload()"><i class="bi bi-box-arrow-right"></i> ออก</button></li>
         </ul>
 
-        <div class="tab-content p-3 container-md" id="myTabContent">
-            
+        <div class="tab-content p-3 container-md">
             <div class="tab-pane fade show active" id="patient">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="mb-3 text-primary"><i class="bi bi-person-lines-fill"></i> ลงทะเบียนผู้ป่วยใหม่</h5>
-                        
-                        <div class="form-floating mb-3">
-                            <input type="text" id="pHN" class="form-control" placeholder="HN" maxlength="7">
-                            <label>HN (สูงสุด 7 หลัก)</label>
+                <div class="card border-0 p-3 shadow-sm rounded-4">
+                    <h5 class="mb-4 text-primary fw-bold">ลงทะเบียนผู้ป่วยใหม่</h5>
+                    <div class="row g-3">
+                        <div class="col-md-6"><label class="small text-muted">HN (สูงสุด 7 หลัก)</label><input type="text" id="pHN" class="form-control" maxlength="7"></div>
+                        <div class="col-md-6"><label class="small text-muted">ชื่อ-นามสกุล</label><input type="text" id="pName" class="form-control"></div>
+                        <div class="col-md-6"><label class="small text-muted">เลขบัตรประชาชน (13 หลัก)</label><input type="text" id="pCID" class="form-control" maxlength="13"></div>
+                        <div class="col-md-6"><label class="small text-muted">เบอร์โทรศัพท์</label><input type="text" id="pPhone" class="form-control" maxlength="10"></div>
+                        <div class="col-12"><label class="small text-muted">ที่อยู่</label><textarea id="pAddress" class="form-control" rows="2"></textarea></div>
+                        <div class="col-12"><label class="small text-muted">โรคประจำตัว</label><input type="text" id="pDisease" class="form-control"></div>
+                        <div class="col-12">
+                            <div class="input-group">
+                                <input type="text" id="pLat" class="form-control bg-light" placeholder="Lat" readonly>
+                                <input type="text" id="pLng" class="form-control bg-light" placeholder="Lng" readonly>
+                                <button class="btn btn-dark" type="button" onclick="getLocation('pLat','pLng')"><i class="bi bi-pin-map"></i> ดึงพิกัด</button>
+                            </div>
                         </div>
-                        <div class="form-floating mb-3">
-                            <input type="text" id="pName" class="form-control" placeholder="ชื่อ-สกุล">
-                            <label>ชื่อ-นามสกุล</label>
-                        </div>
-                        <div class="form-floating mb-3">
-                            <input type="text" id="pCID" class="form-control" placeholder="เลขบัตรประชาชน" maxlength="13">
-                            <label>เลขบัตรประชาชน (13 หลัก)</label>
-                        </div>
-                        <div class="form-floating mb-3">
-                            <textarea id="pAddress" class="form-control" placeholder="ที่อยู่" style="height: 80px"></textarea>
-                            <label>ที่อยู่</label>
-                        </div>
-                        <div class="form-floating mb-3">
-                            <input type="text" id="pPhone" class="form-control" placeholder="เบอร์โทรศัพท์" maxlength="10">
-                            <label>เบอร์โทรศัพท์ (บ้าน 9, มือถือ 10 หลัก)</label>
-                        </div>
-                        <div class="form-floating mb-3">
-                            <input type="text" id="pDisease" class="form-control" placeholder="โรคประจำตัว">
-                            <label>โรคประจำตัว</label>
-                        </div>
-                        
-                        <div class="input-group mb-4">
-                            <input type="text" id="pLat" class="form-control" placeholder="ละติจูด (Lat)" readonly>
-                            <input type="text" id="pLng" class="form-control" placeholder="ลองจิจูด (Lng)" readonly>
-                            <button class="btn btn-outline-danger" type="button" onclick="getLocation('pLat','pLng')"><i class="bi bi-crosshair"></i> ดึงพิกัด</button>
-                        </div>
-                        
-                        <button class="btn btn-success w-100 p-2" onclick="savePatient()"><i class="bi bi-save"></i> บันทึกผู้ป่วยใหม่</button>
+                        <div class="col-12"><button class="btn btn-primary w-100 p-3 mt-2" onclick="savePatient()">บันทึกข้อมูลผู้ป่วย</button></div>
                     </div>
                 </div>
             </div>
 
             <div class="tab-pane fade" id="visit">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="mb-3 text-success"><i class="bi bi-house-check"></i> บันทึกการเยี่ยมบ้าน</h5>
-                        <div class="form-floating mb-3">
-                            <input type="text" id="vHN" class="form-control" placeholder="HN ผู้ป่วย" maxlength="7">
-                            <label>HN ผู้ป่วย</label>
+                <div class="card border-0 p-3 shadow-sm rounded-4">
+                    <h5 class="mb-4 text-success fw-bold">บันทึกการเยี่ยมบ้าน</h5>
+                    <div class="mb-3"><label class="small text-muted">HN ผู้ป่วย</label><input type="text" id="vHN" class="form-control" maxlength="7"></div>
+                    <div class="mb-3"><label class="small text-muted">วันที่เยี่ยม</label><input type="date" id="vDate" class="form-control"></div>
+                    <div class="mb-3"><label class="small text-muted">รายละเอียด</label><textarea id="vDetails" class="form-control" rows="3"></textarea></div>
+                    <div class="mb-3"><label class="small text-muted">รูปภาพ (สูงสุด 6 รูป)</label><input type="file" id="vPhotos" class="form-control" multiple accept="image/*"></div>
+                    <div class="mb-4">
+                        <div class="input-group">
+                            <input type="text" id="vLat" class="form-control bg-light" placeholder="Lat" readonly>
+                            <input type="text" id="vLng" class="form-control bg-light" placeholder="Lng" readonly>
+                            <button class="btn btn-dark" type="button" onclick="getLocation('vLat','vLng')"><i class="bi bi-geo"></i> พิกัดปัจจุบัน</button>
                         </div>
-                        <div class="form-floating mb-3">
-                            <input type="date" id="vDate" class="form-control">
-                            <label>วันที่เยี่ยม</label>
-                        </div>
-                        <div class="form-floating mb-3">
-                            <textarea id="vDetails" class="form-control" style="height: 100px" placeholder="รายละเอียด"></textarea>
-                            <label>รายละเอียด / อาการ</label>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label text-muted small"><i class="bi bi-camera"></i> อัปโหลดรูป (สูงสุด 6 รูป)</label>
-                            <input type="file" id="vPhotos" class="form-control" accept="image/*" multiple>
-                        </div>
-                        
-                        <div class="input-group mb-4">
-                            <input type="text" id="vLat" class="form-control" placeholder="Lat" readonly>
-                            <input type="text" id="vLng" class="form-control" placeholder="Lng" readonly>
-                            <button class="btn btn-outline-danger" type="button" onclick="getLocation('vLat','vLng')"><i class="bi bi-crosshair"></i> ดึงพิกัด</button>
-                        </div>
-
-                        <button class="btn btn-primary w-100 p-2" onclick="saveVisit()" id="btnSaveVisit"><i class="bi bi-cloud-arrow-up"></i> บันทึกข้อมูลและอัปโหลดรูป</button>
                     </div>
+                    <button class="btn btn-success w-100 p-3" id="btnSaveVisit" onclick="saveVisit()">บันทึกข้อมูลเยี่ยมบ้าน</button>
                 </div>
             </div>
 
-            <div class="tab-pane fade" id="mapView">
-                <div id="map" class="shadow-sm"></div>
-                <button class="btn btn-outline-primary w-100 mt-3" onclick="loadMapData()"><i class="bi bi-arrow-clockwise"></i> โหลดหมุดใหม่</button>
-            </div>
-
+            <div class="tab-pane fade" id="mapView"><div id="map"></div></div>
             <div class="tab-pane fade" id="admin">
-                <div class="card mb-3">
-                    <div class="card-body bg-light">
-                        <h6><i class="bi bi-person-plus-fill"></i> เพิ่มผู้ใช้งาน</h6>
-                        <div class="row g-2">
-                            <div class="col-6"><input type="text" id="aUser" class="form-control" placeholder="Username"></div>
-                            <div class="col-6"><input type="text" id="aPass" class="form-control" placeholder="Password"></div>
-                            <div class="col-6"><input type="text" id="aName" class="form-control" placeholder="ชื่อ-สกุล"></div>
-                            <div class="col-6">
-                                <select id="aRole" class="form-select">
-                                    <option value="User">User</option>
-                                    <option value="Admin">Admin</option>
-                                </select>
-                            </div>
-                            <div class="col-12"><button class="btn btn-danger w-100" onclick="addUser()">เพิ่มผู้ใช้</button></div>
-                        </div>
-                    </div>
                 </div>
-                <div class="card">
-                    <div class="card-body p-0">
-                        <ul class="list-group list-group-flush" id="userList">
-                            </ul>
-                    </div>
-                </div>
-            </div>
-
         </div>
     </div>
 
@@ -167,7 +145,56 @@
     
     <script>
         // ใช้ URL จากชีต4.csv ของคุณ
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxHC-q-R7zvc1GgRd4VH6sKMNEV3hsr79JJ2Y2i26OjHBCp_nzosD_jWpZu5C16vhBi1w/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxHC-q-R7zvc1GgRd4VH6sKMNEV3hsr79JJ2Y2i26OjHBCp_nzosD_jWpZu5C16vhBi1w/exec';
+        
+        // เมื่อเปิดหน้าเว็บ โหลด Dashboard ทันที
+        window.onload = loadDashboard;
+
+        async function loadDashboard() {
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: "getDashboardData" })
+                });
+                const res = await response.json();
+                if(res.status === "success") {
+                    document.getElementById('stat-patients').innerText = res.summary.totalPatients;
+                    document.getElementById('stat-visits').innerText = res.summary.totalVisits;
+                    
+                    const tbody = document.getElementById('recent-visit-table');
+                    tbody.innerHTML = "";
+                    res.summary.recentVisits.forEach(v => {
+                        tbody.innerHTML += `<tr><td><span class="badge bg-secondary">${v.hn}</span></td><td>${new Date(v.date).toLocaleDateString('th-TH')}</td><td>${v.details}</td></tr>`;
+                    });
+                }
+            } catch (e) { console.error("Load Dashboard Fail", e); }
+        }
+
+        function showLogin() {
+            document.getElementById('dashboard-section').classList.add('hidden');
+            document.getElementById('login-section').classList.remove('hidden');
+        }
+
+        function hideLogin() {
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('dashboard-section').classList.remove('hidden');
+        }
+
+        async function login() {
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            const res = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: "login", username: u, password: p })
+            }).then(r => r.json());
+
+            if(res.status === "success") {
+                document.getElementById('login-section').classList.add('hidden');
+                document.getElementById('app-container').classList.remove('hidden');
+                if(res.role === "Admin") document.getElementById('admin-nav').classList.remove('hidden');
+                fetchPatients(); // โหลดข้อมูลผู้ป่วยไว้ใน Mem
+            } else { alert(res.message); }
+        }
         let currentUserEmail = "";
         let patientsList = [];
         let map;
@@ -380,11 +407,11 @@
         }
 
         // GPS ทั่วไป (ใช้งานร่วมกัน)
-        function getLocation(latId, lngId) {
+function getLocation(latId, lngId) {
             navigator.geolocation.getCurrentPosition(pos => {
                 document.getElementById(latId).value = pos.coords.latitude;
                 document.getElementById(lngId).value = pos.coords.longitude;
-            });
+            }, err => alert("กรุณาเปิด GPS"), {enableHighAccuracy: true});
         }
 
         // ระบบแผนที่
