@@ -16,13 +16,46 @@
         .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.1) !important; }
         .stat-icon { font-size: 3rem; opacity: 0.1; position: absolute; right: 20px; bottom: 10px; }
         
-        .nav-pills::-webkit-scrollbar { display: none; }
-        /* ปรับขนาดแถบเมนูให้เล็กลง */
-.nav-pills { background: #fff; padding: 5px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); overflow-x: auto; flex-wrap: nowrap; white-space: nowrap; }
-.nav-pills .nav-link { color: #6c757d; border-radius: 12px; margin: 0 3px; padding: 6px 10px; font-size: 0.85rem; }
-/* ปรับขนาดไอคอนในแถบเมนูให้สมดุล */
-.nav-pills .nav-link i { font-size: 0.9rem; margin-right: 3px; }
-        .nav-pills .nav-link.active { background-color: var(--primary); color: white; }
+/* ปรับแถบเมนูให้เล็กและกะทัดรัดที่สุด */
+.nav-pills { 
+    background: #fff; 
+    padding: 4px; 
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08); 
+    overflow-x: auto; 
+    flex-wrap: nowrap; 
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1050;
+}
+
+.nav-pills .nav-link { 
+    color: #555; 
+    border-radius: 10px; 
+    margin: 0 2px; 
+    padding: 6px 10px; 
+    font-size: 0.8rem; /* ลดขนาดตัวอักษร */
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+}
+
+.nav-pills .nav-link i { 
+    font-size: 1rem; 
+    margin-right: 4px; 
+}
+
+.nav-pills .nav-link.active { 
+    background-color: var(--primary); 
+    color: #fff; 
+    font-weight: 500;
+}
+
+/* ซ่อนข้อความบางส่วนบนมือถือจอเล็กเพื่อประหยัดพื้นที่ */
+@media (max-width: 400px) {
+    .nav-pills .nav-link span { display: none; } /* ซ่อนข้อความ เหลือแต่ไอคอน */
+    .nav-pills .nav-link i { margin-right: 0; font-size: 1.2rem; }
+}
         .app-card { border: none; border-radius: 16px; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
         #map { height: 60vh; border-radius: 16px; z-index: 1; }
         .map-img { border-radius: 8px; object-fit: cover; height: 90px; width: 48%; display: inline-block; }
@@ -468,6 +501,65 @@
         async function loadUsers() { let res = await callAPI({ action: "getUsers" }); if(res.status === "success") { const list = document.getElementById('userList'); list.innerHTML = ""; res.data.forEach(u => { if(u.Username) { list.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center bg-white border-0 border-bottom"><div><i class="bi bi-person-circle text-muted"></i> <strong>${u.Username}</strong> <span class="badge bg-light text-dark">${u.Role}</span><br><small class="text-muted ms-3">${u.Name}</small></div><button class="btn btn-sm btn-outline-danger rounded-circle" onclick="deleteUser('${u.Username}')"><i class="bi bi-trash"></i></button></li>`; } }); } }
         async function addUser() { const u = { Username: document.getElementById('aUser').value, Password: document.getElementById('aPass').value, Name: document.getElementById('aName').value, Role: document.getElementById('aRole').value, Email: "-", Department: "-", Status: "Active" }; if(!u.Username || !u.Password) return alert("กรอกข้อมูลบังคับ"); let res = await callAPI({ action: "addUser", user: u }); if(res.status === "success") { ['aUser','aPass','aName'].forEach(id => document.getElementById(id).value = ''); loadUsers(); } }
         async function deleteUser(user) { if(confirm(`ต้องการลบ ${user}?`) && (await callAPI({ action: "deleteUser", username: user })).status === "success") loadUsers(); }
+
+
+        // ฟังก์ชันดึงรูปภาพที่เสถียรที่สุดสำหรับ Google Drive
+function getDirectImageUrl(driveUrl) {
+    if (!driveUrl || driveUrl === "" || driveUrl === "-") return "";
+    
+    let fileId = "";
+    // รองรับรูปแบบ /d/ID/view
+    if (driveUrl.includes('/d/')) {
+        fileId = driveUrl.split('/d/')[1].split('/')[0];
+    } 
+    // รองรับรูปแบบ id=ID
+    else if (driveUrl.includes('id=')) {
+        fileId = driveUrl.split('id=')[1].split('&')[0];
+    }
+
+    if (fileId) {
+        // ใช้ Thumbnail API ที่แสดงผลได้แน่นอนที่สุดใน Popup แผนที่
+        return `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;
+    }
+    return "";
+}
+
+// ปรับปรุงการวาดหมุดบนแผนที่ให้รองรับการค้นหาและรูปภาพ
+function renderMapMarkers(dataToRender) {
+    if (!map) return;
+    map.eachLayer((layer) => { if (layer instanceof L.Marker) map.removeLayer(layer); });
+    
+    dataToRender.forEach(p => {
+        if (p.Latitude && p.Longitude) {
+            const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.Latitude},${p.Longitude}`;
+            
+            // เตรียม HTML สำหรับรูปภาพ
+            let imgHtml = "";
+            let img1 = getDirectImageUrl(p.Photo_1);
+            let img2 = getDirectImageUrl(p.Photo_2);
+
+            if (img1 || img2) {
+                imgHtml = `<div class='d-flex gap-1 mt-2 mb-2'>`;
+                if (img1) imgHtml += `<div style="width:50%; height:90px; background:#eee; border-radius:8px; overflow:hidden;"><img src="${img1}" style="width:100%; height:100%; object-fit:cover;" onerror="this.parentElement.innerHTML='<small class=\\'p-2\\'>รูป 1</small>'"></div>`;
+                if (img2) imgHtml += `<div style="width:50%; height:90px; background:#eee; border-radius:8px; overflow:hidden;"><img src="${img2}" style="width:100%; height:100%; object-fit:cover;" onerror="this.parentElement.innerHTML='<small class=\\'p-2\\'>รูป 2</small>'"></div>`;
+                imgHtml += `</div>`;
+            }
+
+            const content = `
+                <div style="font-family:'Kanit',sans-serif; min-width:200px;">
+                    <div class="fw-bold text-primary">${p.Name}</div>
+                    <div class="small text-muted">HN: ${p.HN} | <i class="bi bi-telephone"></i> ${p.Phone || '-'}</div>
+                    ${imgHtml}
+                    <button class='btn btn-primary btn-sm w-100 mt-2 rounded-pill' onclick='window.open("${navUrl}")'>
+                        <i class="bi bi-cursor-fill"></i> นำทางไปบ้านผู้ป่วย
+                    </button>
+                </div>
+            `;
+            
+            L.marker([p.Latitude, p.Longitude]).addTo(map).bindPopup(content);
+        }
+    });
+}
     </script>
 </body>
 </html>
