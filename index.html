@@ -21,7 +21,7 @@
         .nav-pills .nav-link.active { background-color: var(--primary); color: white; }
         .app-card { border: none; border-radius: 16px; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
         #map { height: 60vh; border-radius: 16px; z-index: 1; }
-        .map-img { border-radius: 8px; object-fit: cover; height: 80px; width: 48%; display: inline-block; }
+        .map-img { border-radius: 8px; object-fit: cover; height: 90px; width: 48%; display: inline-block; }
     </style>
 </head>
 <body>
@@ -88,7 +88,6 @@
             
             <div class="tab-pane fade show active" id="patient">
                 <div class="card app-card p-4">
-                    <h5 class="text-primary fw-bold mb-3"><i class="bi bi-person-plus"></i> เพิ่มผู้ป่วยใหม่</h5>
                     <div class="row g-3">
                         <div class="col-6"><label class="small text-muted">HN</label><input type="text" id="pHN" class="form-control" maxlength="7"></div>
                         <div class="col-6"><label class="small text-muted">ชื่อ-นามสกุล</label><input type="text" id="pName" class="form-control"></div>
@@ -111,7 +110,6 @@
 
             <div class="tab-pane fade" id="patientList">
                 <div class="card app-card p-3">
-                    <h5 class="text-primary fw-bold mb-3"><i class="bi bi-list-check"></i> รายชื่อผู้ป่วยทั้งหมด</h5>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
                             <thead class="table-light"><tr><th>HN</th><th>ชื่อ-สกุล</th><th>เบอร์โทร</th><th>จัดการ</th></tr></thead>
@@ -171,12 +169,18 @@
                     <div class="mb-2"><label class="small text-muted">ที่อยู่</label><textarea id="eAddress" class="form-control" rows="2"></textarea></div>
                     <div class="mb-2"><label class="small text-muted">เบอร์โทรศัพท์</label><input type="text" id="ePhone" class="form-control" maxlength="10"></div>
                     <div class="mb-2"><label class="small text-muted">โรคประจำตัว</label><input type="text" id="eDisease" class="form-control"></div>
+                    
+                    <div class="mb-2">
+                        <label class="small text-muted">อัปเดตรูปภาพใหม่ (ปล่อยว่างถ้าใช้รูปเดิม)</label>
+                        <input type="file" id="ePhotos" class="form-control" accept="image/*" multiple>
+                    </div>
+
                     <div class="row g-2">
                         <div class="col-6"><label class="small text-muted">Lat</label><input type="text" id="eLat" class="form-control"></div>
                         <div class="col-6"><label class="small text-muted">Lng</label><input type="text" id="eLng" class="form-control"></div>
                     </div>
                 </div>
-                <div class="modal-footer"><button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">ยกเลิก</button><button type="button" class="btn btn-primary rounded-pill" onclick="submitEdit()">บันทึก</button></div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">ยกเลิก</button><button type="button" class="btn btn-primary rounded-pill" id="btnSubmitEdit" onclick="submitEdit()">บันทึก</button></div>
             </div>
         </div>
     </div>
@@ -185,7 +189,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyHFwNLNGjKoteMEMGt2SEucy-oorc3pvdeLMX-bfYp0h93GHyWX_mXD0C_I999re6YgA/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzI6MirsgayAe3jtalLrWXqqSSbf8yRATWpTH8TdhGurtZkBTyo3_LBmLKu5WgBGnjXIw/exec';
         let currentUserEmail = "";
         let patientsList = [];
         let map;
@@ -201,7 +205,7 @@
         }
 
         async function callAPI(payload) {
-            payload.userEmail = currentUserEmail; // ส่งอีเมลไปเก็บ Log ตลอด
+            payload.userEmail = currentUserEmail; 
             const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
             return await res.json();
         }
@@ -301,7 +305,6 @@
             btn.disabled = false;
         }
 
-        // --- ระบบรายชื่อผู้ป่วย (Edit & Delete) ---
         function renderPatientList() {
             const tbody = document.getElementById('pt-table-body');
             tbody.innerHTML = "";
@@ -327,18 +330,36 @@
             document.getElementById('eDisease').value = p.Chronic_Disease;
             document.getElementById('eLat').value = p.Latitude;
             document.getElementById('eLng').value = p.Longitude;
+            document.getElementById('ePhotos').value = ''; // เคลียร์ช่องเลือกไฟล์เผื่อเคสเก่า
             editModal.show();
         }
 
         async function submitEdit() {
+            let btn = document.getElementById('btnSubmitEdit');
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> กำลังบันทึก...`;
+            btn.disabled = true;
+
+            const fileInput = document.getElementById('ePhotos');
+            let base64Photos = [];
+            // ดึงรูปใหม่ถ้ามีการอัปโหลด
+            if(fileInput.files.length > 0) {
+                for (let i = 0; i < fileInput.files.length && i < 6; i++) {
+                    base64Photos.push(await compressImage(fileInput.files[i]));
+                }
+            }
+
             const p = {
                 HN: document.getElementById('eHN').value, Name: document.getElementById('eName').value,
                 CID: document.getElementById('eCID').value, Address: document.getElementById('eAddress').value,
                 Phone: document.getElementById('ePhone').value, Chronic_Disease: document.getElementById('eDisease').value,
-                Latitude: document.getElementById('eLat').value, Longitude: document.getElementById('eLng').value
+                Latitude: document.getElementById('eLat').value, Longitude: document.getElementById('eLng').value,
+                photos: base64Photos // ส่งรูปไปด้วย
             };
             let res = await callAPI({ action: "updatePatient", patient: p });
-            if(res.status === "success") { editModal.hide(); await fetchPatients(); renderPatientList(); }
+            if(res.status === "success") { editModal.hide(); alert("อัปเดตข้อมูลสำเร็จ"); await fetchPatients(); renderPatientList(); }
+            
+            btn.innerHTML = "บันทึก";
+            btn.disabled = false;
         }
 
         async function deletePatient(hn) {
@@ -391,10 +412,19 @@
             if(res.status === "success") { patientsList = res.data; renderPatientList(); }
         }
 
-        // --- ระบบแผนที่ (แสดงรูป, ชื่อ, HN, เบอร์โทร, ปุ่มนำทาง) ---
+        // แปลงลิงก์ Google Drive View ให้เป็น Direct Download Image เพื่อให้แสดงใน <img> ได้
+        function getDirectImageUrl(driveUrl) {
+            if(!driveUrl) return "";
+            let match = driveUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            if(match && match[1]) {
+                return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+            }
+            return driveUrl;
+        }
+
         function initMap() {
             if(!map) {
-                map = L.map('map').setView([14.02, 99.53], 10); // อิงพิกัด จ.กาญจนบุรี
+                map = L.map('map').setView([14.02, 99.53], 10); 
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
                 setTimeout(() => { map.invalidateSize(); loadMapData(); }, 400);
             }
@@ -408,12 +438,12 @@
                 if(p.Latitude && p.Longitude) {
                     let navUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.Latitude},${p.Longitude}`;
                     
-                    // แทรกรูป 2 รูปแรกถ้ามี
+                    // แทรกรูป 2 รูปแรก (ใช้ฟังก์ชันแปลงลิงก์ Direct Link)
                     let imgHtml = "";
                     if(p.Photo_1 || p.Photo_2) {
-                        imgHtml += "<div class='mt-2 mb-2 d-flex justify-content-between'>";
-                        if(p.Photo_1) imgHtml += `<img src="${p.Photo_1}" class="map-img">`;
-                        if(p.Photo_2) imgHtml += `<img src="${p.Photo_2}" class="map-img">`;
+                        imgHtml += "<div class='mt-2 mb-2 d-flex justify-content-between gap-1'>";
+                        if(p.Photo_1) imgHtml += `<img src="${getDirectImageUrl(p.Photo_1)}" class="map-img" onerror="this.style.display='none'">`;
+                        if(p.Photo_2) imgHtml += `<img src="${getDirectImageUrl(p.Photo_2)}" class="map-img" onerror="this.style.display='none'">`;
                         imgHtml += "</div>";
                     }
 
@@ -423,12 +453,11 @@
                     ${imgHtml}
                     <button class='btn btn-sm btn-primary w-100 mt-1 rounded-pill' onclick='window.open("${navUrl}")'><i class="bi bi-sign-turn-right-fill"></i> นำทาง</button>`;
                     
-                    L.marker([p.Latitude, p.Longitude]).addTo(map).bindPopup(content, {minWidth: 200});
+                    L.marker([p.Latitude, p.Longitude]).addTo(map).bindPopup(content, {minWidth: 220});
                 }
             });
         }
 
-        // --- Admin ---
         async function loadUsers() {
             let res = await callAPI({ action: "getUsers" });
             if(res.status === "success") {
