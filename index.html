@@ -15,9 +15,13 @@
         .stat-card { border: none; border-radius: 16px; transition: 0.3s; }
         .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.1) !important; }
         .stat-icon { font-size: 3rem; opacity: 0.1; position: absolute; right: 20px; bottom: 10px; }
-        .nav-pills { background: #fff; padding: 10px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); overflow-x: auto; flex-wrap: nowrap; white-space: nowrap; }
+        
         .nav-pills::-webkit-scrollbar { display: none; }
-        .nav-pills .nav-link { color: #6c757d; border-radius: 20px; margin: 0 5px; padding: 8px 16px; }
+        /* ปรับขนาดแถบเมนูให้เล็กลง */
+.nav-pills { background: #fff; padding: 5px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); overflow-x: auto; flex-wrap: nowrap; white-space: nowrap; }
+.nav-pills .nav-link { color: #6c757d; border-radius: 12px; margin: 0 3px; padding: 6px 10px; font-size: 0.85rem; }
+/* ปรับขนาดไอคอนในแถบเมนูให้สมดุล */
+.nav-pills .nav-link i { font-size: 0.9rem; margin-right: 3px; }
         .nav-pills .nav-link.active { background-color: var(--primary); color: white; }
         .app-card { border: none; border-radius: 16px; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
         #map { height: 60vh; border-radius: 16px; z-index: 1; }
