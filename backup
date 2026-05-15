@@ -1,1 +1,504 @@
 
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบเยี่ยมบ้าน</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #0d6efd; --bg: #f8f9fa; }
+        body { background-color: var(--bg); font-family: 'Kanit', sans-serif; }
+        .hidden { display: none !important; }
+        .stat-card { border: none; border-radius: 16px; transition: 0.3s; }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.1) !important; }
+        .stat-icon { font-size: 3rem; opacity: 0.1; position: absolute; right: 20px; bottom: 10px; }
+        .nav-pills { background: #fff; padding: 10px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); overflow-x: auto; flex-wrap: nowrap; white-space: nowrap; }
+        .nav-pills::-webkit-scrollbar { display: none; }
+        .nav-pills .nav-link { color: #6c757d; border-radius: 20px; margin: 0 5px; padding: 8px 16px; }
+        .nav-pills .nav-link.active { background-color: var(--primary); color: white; }
+        .app-card { border: none; border-radius: 16px; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+        #map { height: 60vh; border-radius: 16px; z-index: 1; }
+        .map-img { border-radius: 8px; object-fit: cover; height: 90px; width: 48%; display: inline-block; }
+    </style>
+</head>
+<body>
+
+    <div id="dashboard-section" class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="fw-bold mb-0 text-dark"><i class="bi bi-activity text-primary"></i> ภาพรวมระบบ</h4>
+            <button class="btn btn-primary rounded-pill px-4" onclick="toggleView('login-section')">
+                <i class="bi bi-person-lock"></i> เจ้าหน้าที่
+            </button>
+        </div>
+        <div class="row g-3 mb-4">
+            <div class="col-6">
+                <div class="card stat-card shadow-sm h-100 p-4 position-relative">
+                    <small class="text-muted fw-bold">ผู้ป่วยในระบบ</small>
+                    <h1 class="display-5 fw-bold text-primary mt-2" id="stat-patients">-</h1>
+                    <i class="bi bi-people-fill stat-icon"></i>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="card stat-card shadow-sm h-100 p-4 position-relative">
+                    <small class="text-muted fw-bold">บันทึกเยี่ยมบ้าน</small>
+                    <h1 class="display-5 fw-bold text-success mt-2" id="stat-visits">-</h1>
+                    <i class="bi bi-journal-check stat-icon"></i>
+                </div>
+            </div>
+        </div>
+        <div class="card app-card p-3">
+            <h6 class="text-muted mb-3"><i class="bi bi-clock-history"></i> อัปเดตล่าสุด</h6>
+            <div class="table-responsive">
+                <table class="table table-borderless align-middle">
+                    <thead class="table-light"><tr><th>HN</th><th>วันที่</th><th>รายละเอียด</th></tr></thead>
+                    <tbody id="recent-visits"><tr><td colspan="3" class="text-center py-3">กำลังโหลด...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="login-section" class="container mt-5 pt-4 hidden">
+        <div class="row justify-content-center">
+            <div class="col-md-4 col-sm-8">
+                <div class="card app-card p-4">
+                    <div class="text-center mb-4"><i class="bi bi-shield-lock-fill text-primary" style="font-size: 3rem;"></i></div>
+                    <input type="text" id="username" class="form-control form-control-lg mb-3 rounded-3" placeholder="ชื่อผู้ใช้งาน">
+                    <input type="password" id="password" class="form-control form-control-lg mb-4 rounded-3" placeholder="รหัสผ่าน">
+                    <button class="btn btn-primary btn-lg w-100 rounded-3 mb-2" onclick="login()">เข้าสู่ระบบ</button>
+                    <button class="btn btn-light w-100 rounded-3 text-muted" onclick="toggleView('dashboard-section')">กลับ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-section" class="container-fluid p-0 hidden">
+        <ul class="nav nav-pills nav-fill sticky-top px-2" role="tablist">
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#patient"><i class="bi bi-person-plus"></i> ลงทะเบียน</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#patientList" onclick="renderPatientList()"><i class="bi bi-people"></i> ผู้ป่วยทั้งหมด</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#visit"><i class="bi bi-journal-medical"></i> บันทึก</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#mapView" onclick="initMap()"><i class="bi bi-geo-alt"></i> แผนที่</button></li>
+            <li class="nav-item hidden" id="admin-nav"><button class="nav-link text-danger" data-bs-toggle="tab" data-bs-target="#admin" onclick="loadUsers()"><i class="bi bi-gear"></i></button></li>
+            <li class="nav-item"><button class="nav-link text-secondary" onclick="location.reload()"><i class="bi bi-power"></i></button></li>
+        </ul>
+
+        <div class="tab-content p-3 container-md">
+            
+            <div class="tab-pane fade show active" id="patient">
+                <div class="card app-card p-4">
+                    <div class="row g-3">
+                        <div class="col-6"><label class="small text-muted">HN</label><input type="text" id="pHN" class="form-control" maxlength="7"></div>
+                        <div class="col-6"><label class="small text-muted">ชื่อ-นามสกุล</label><input type="text" id="pName" class="form-control"></div>
+                        <div class="col-12"><label class="small text-muted">เลขบัตรประชาชน</label><input type="text" id="pCID" class="form-control" maxlength="13"></div>
+                        <div class="col-12"><label class="small text-muted">ที่อยู่</label><textarea id="pAddress" class="form-control" rows="2"></textarea></div>
+                        <div class="col-6"><label class="small text-muted">เบอร์โทรศัพท์</label><input type="text" id="pPhone" class="form-control" maxlength="10"></div>
+                        <div class="col-6"><label class="small text-muted">โรคประจำตัว</label><input type="text" id="pDisease" class="form-control"></div>
+                        <div class="col-12"><label class="small text-muted">รูปบ้าน/สภาพแวดล้อม (สูงสุด 6 รูป)</label><input type="file" id="pPhotos" class="form-control" accept="image/*" multiple></div>
+                        <div class="col-12">
+                            <div class="input-group mt-2">
+                                <input type="text" id="pLat" class="form-control bg-light" placeholder="ละติจูด" readonly>
+                                <input type="text" id="pLng" class="form-control bg-light" placeholder="ลองจิจูด" readonly>
+                                <button class="btn btn-dark" type="button" onclick="getLocation('pLat','pLng')"><i class="bi bi-crosshair"></i> พิกัด</button>
+                            </div>
+                        </div>
+                        <div class="col-12 mt-4"><button class="btn btn-primary w-100 p-2 rounded-3" id="btnSavePatient" onclick="savePatient()"><i class="bi bi-save"></i> บันทึกผู้ป่วยใหม่</button></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="patientList">
+                <div class="card app-card p-3">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light"><tr><th>HN</th><th>ชื่อ-สกุล</th><th>เบอร์โทร</th><th>จัดการ</th></tr></thead>
+                            <tbody id="pt-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="visit">
+                <div class="card app-card p-4">
+                    <div class="mb-3"><label class="small text-muted">HN ผู้ป่วย</label><input type="text" id="vHN" class="form-control" maxlength="7"></div>
+                    <div class="mb-3"><label class="small text-muted">วันที่เยี่ยม</label><input type="date" id="vDate" class="form-control"></div>
+                    <div class="mb-3"><label class="small text-muted">รายละเอียด/อาการ</label><textarea id="vDetails" class="form-control" rows="3"></textarea></div>
+                    <div class="mb-3"><label class="small text-muted">อัปโหลดรูป (สูงสุด 6 รูป)</label><input type="file" id="vPhotos" class="form-control" accept="image/*" multiple></div>
+                    <div class="mb-4">
+                        <div class="input-group">
+                            <input type="text" id="vLat" class="form-control bg-light" placeholder="Lat" readonly>
+                            <input type="text" id="vLng" class="form-control bg-light" placeholder="Lng" readonly>
+                            <button class="btn btn-dark" type="button" onclick="getLocation('vLat','vLng')"><i class="bi bi-crosshair"></i> พิกัด</button>
+                        </div>
+                    </div>
+                    <button class="btn btn-success w-100 p-2 rounded-3" id="btnSaveVisit" onclick="saveVisit()"><i class="bi bi-cloud-arrow-up"></i> บันทึกข้อมูลและรูปถ่าย</button>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="mapView">
+                <div id="map" class="shadow-sm"></div>
+                <button class="btn btn-outline-primary w-100 mt-3 rounded-pill" onclick="loadMapData()"><i class="bi bi-arrow-clockwise"></i> รีเฟรชหมุด</button>
+            </div>
+
+            <div class="tab-pane fade" id="admin">
+                <div class="card app-card p-4 mb-3">
+                    <h6 class="text-danger fw-bold"><i class="bi bi-person-add"></i> เพิ่มผู้ใช้ใหม่</h6>
+                    <div class="row g-2">
+                        <div class="col-6"><input type="text" id="aUser" class="form-control" placeholder="Username"></div>
+                        <div class="col-6"><input type="text" id="aPass" class="form-control" placeholder="Password"></div>
+                        <div class="col-6"><input type="text" id="aName" class="form-control" placeholder="ชื่อ-สกุล"></div>
+                        <div class="col-6"><select id="aRole" class="form-select"><option value="User">User</option><option value="Admin">Admin</option></select></div>
+                        <div class="col-12"><button class="btn btn-danger w-100 rounded-3 mt-2" onclick="addUser()">บันทึกผู้ใช้</button></div>
+                    </div>
+                </div>
+                <ul class="list-group list-group-flush rounded-3 shadow-sm" id="userList"></ul>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="modal fade" id="editModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content border-0 rounded-4 shadow">
+                <div class="modal-header"><h5 class="modal-title fw-bold">แก้ไขข้อมูลผู้ป่วย</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <input type="hidden" id="eHN">
+                    <div class="mb-2"><label class="small text-muted">ชื่อ-นามสกุล</label><input type="text" id="eName" class="form-control"></div>
+                    <div class="mb-2"><label class="small text-muted">เลขบัตรประชาชน</label><input type="text" id="eCID" class="form-control" maxlength="13"></div>
+                    <div class="mb-2"><label class="small text-muted">ที่อยู่</label><textarea id="eAddress" class="form-control" rows="2"></textarea></div>
+                    <div class="mb-2"><label class="small text-muted">เบอร์โทรศัพท์</label><input type="text" id="ePhone" class="form-control" maxlength="10"></div>
+                    <div class="mb-2"><label class="small text-muted">โรคประจำตัว</label><input type="text" id="eDisease" class="form-control"></div>
+                    
+                    <div class="mb-2">
+                        <label class="small text-muted">อัปเดตรูปภาพใหม่ (ปล่อยว่างถ้าใช้รูปเดิม)</label>
+                        <input type="file" id="ePhotos" class="form-control" accept="image/*" multiple>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-6"><label class="small text-muted">Lat</label><input type="text" id="eLat" class="form-control"></div>
+                        <div class="col-6"><label class="small text-muted">Lng</label><input type="text" id="eLng" class="form-control"></div>
+                    </div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">ยกเลิก</button><button type="button" class="btn btn-primary rounded-pill" id="btnSubmitEdit" onclick="submitEdit()">บันทึก</button></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzGapl4T682jV0Hj-RHJ8kgjyeUsBhAjaufTwNOdloZFvwnSLotiKweVTsY_jANkYpy/exec';
+        let currentUserEmail = "";
+        let patientsList = [];
+        let map;
+        let editModal;
+
+        window.onload = () => { loadDashboard(); editModal = new bootstrap.Modal(document.getElementById('editModal')); };
+
+        function toggleView(viewId) {
+            document.getElementById('dashboard-section').classList.add('hidden');
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('app-section').classList.add('hidden');
+            document.getElementById(viewId).classList.remove('hidden');
+        }
+
+        async function callAPI(payload) {
+            payload.userEmail = currentUserEmail; 
+            const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+            return await res.json();
+        }
+
+        async function loadDashboard() {
+            try {
+                let res = await callAPI({ action: "getDashboardData" });
+                if(res.status === "success") {
+                    document.getElementById('stat-patients').innerText = res.summary.totalPatients;
+                    document.getElementById('stat-visits').innerText = res.summary.totalVisits;
+                    const tbody = document.getElementById('recent-visits');
+                    tbody.innerHTML = "";
+                    res.summary.recentVisits.forEach(v => {
+                        let shortDate = new Date(v.date).toLocaleDateString('th-TH', {day:'2-digit', month:'short'});
+                        tbody.innerHTML += `<tr><td><span class="badge bg-primary rounded-pill">${v.hn}</span></td><td>${shortDate}</td><td><small>${v.details}</small></td></tr>`;
+                    });
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function login() {
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            if(!u || !p) return alert("กรอกข้อมูลให้ครบถ้วน");
+
+            let res = await callAPI({ action: "login", username: u, password: p });
+            if(res.status === "success") {
+                currentUserEmail = res.email;
+                toggleView('app-section');
+                if(res.role === "Admin") document.getElementById('admin-nav').classList.remove('hidden');
+                fetchPatients();
+            } else { alert(res.message); }
+        }
+
+        function formatToCE(dateStr) {
+            if (!dateStr) return "";
+            let parts = dateStr.split("-");
+            let year = parseInt(parts[0]);
+            if (year > 2500) year -= 543;
+            return `${year}-${parts[1]}-${parts[2]}`;
+        }
+
+        function compressImage(file, maxSize = 800) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = event => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let w = img.width, h = img.height;
+                        if (w > h) { if (w > maxSize) { h *= maxSize / w; w = maxSize; } } 
+                        else { if (h > maxSize) { w *= maxSize / h; h = maxSize; } }
+                        canvas.width = w; canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        resolve(canvas.toDataURL('image/jpeg', 0.6)); 
+                    };
+                };
+            });
+        }
+
+        function clearForm(type) {
+            if(type === 'patient') {
+                ['pHN','pName','pCID','pAddress','pPhone','pDisease','pLat','pLng','pPhotos'].forEach(id => document.getElementById(id).value = '');
+            } else if(type === 'visit') {
+                ['vHN','vDetails','vPhotos','vLat','vLng'].forEach(id => document.getElementById(id).value = '');
+            }
+        }
+
+        async function savePatient() {
+            const hn = document.getElementById('pHN').value;
+            if(!hn || hn.length > 7) return alert("HN จำเป็นต้องกรอก และไม่เกิน 7 หลัก");
+
+            let btn = document.getElementById('btnSavePatient');
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> กำลังบันทึก...`;
+            btn.disabled = true;
+
+            const fileInput = document.getElementById('pPhotos');
+            let base64Photos = [];
+            for (let i = 0; i < fileInput.files.length && i < 6; i++) {
+                base64Photos.push(await compressImage(fileInput.files[i]));
+            }
+
+            const p = {
+                HN: hn, Name: document.getElementById('pName').value, CID: document.getElementById('pCID').value,
+                Address: document.getElementById('pAddress').value, Phone: document.getElementById('pPhone').value,
+                Chronic_Disease: document.getElementById('pDisease').value, Latitude: document.getElementById('pLat').value,
+                Longitude: document.getElementById('pLng').value, photos: base64Photos
+            };
+            
+            let res = await callAPI({ action: "savePatient", patient: p });
+            if(res.status === "success") { alert("บันทึกผู้ป่วยใหม่สำเร็จ"); clearForm('patient'); fetchPatients(); }
+            
+            btn.innerHTML = `<i class="bi bi-save"></i> บันทึกผู้ป่วยใหม่`;
+            btn.disabled = false;
+        }
+
+        function renderPatientList() {
+            const tbody = document.getElementById('pt-table-body');
+            tbody.innerHTML = "";
+            patientsList.forEach(p => {
+                if(p.HN) {
+                    tbody.innerHTML += `<tr>
+                        <td><strong>${p.HN}</strong></td><td>${p.Name}</td><td>${p.Phone || '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary rounded-circle me-1" onclick='openEditModal(${JSON.stringify(p)})'><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-outline-danger rounded-circle" onclick="deletePatient('${p.HN}')"><i class="bi bi-trash"></i></button>
+                        </td>
+                    </tr>`;
+                }
+            });
+        }
+
+        function openEditModal(p) {
+            document.getElementById('eHN').value = p.HN;
+            document.getElementById('eName').value = p.Name;
+            document.getElementById('eCID').value = p.CID;
+            document.getElementById('eAddress').value = p.Address;
+            document.getElementById('ePhone').value = p.Phone;
+            document.getElementById('eDisease').value = p.Chronic_Disease;
+            document.getElementById('eLat').value = p.Latitude;
+            document.getElementById('eLng').value = p.Longitude;
+            document.getElementById('ePhotos').value = ''; // เคลียร์ช่องเลือกไฟล์เผื่อเคสเก่า
+            editModal.show();
+        }
+
+        async function submitEdit() {
+            let btn = document.getElementById('btnSubmitEdit');
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> กำลังบันทึก...`;
+            btn.disabled = true;
+
+            const fileInput = document.getElementById('ePhotos');
+            let base64Photos = [];
+            // ดึงรูปใหม่ถ้ามีการอัปโหลด
+            if(fileInput.files.length > 0) {
+                for (let i = 0; i < fileInput.files.length && i < 6; i++) {
+                    base64Photos.push(await compressImage(fileInput.files[i]));
+                }
+            }
+
+            const p = {
+                HN: document.getElementById('eHN').value, Name: document.getElementById('eName').value,
+                CID: document.getElementById('eCID').value, Address: document.getElementById('eAddress').value,
+                Phone: document.getElementById('ePhone').value, Chronic_Disease: document.getElementById('eDisease').value,
+                Latitude: document.getElementById('eLat').value, Longitude: document.getElementById('eLng').value,
+                photos: base64Photos // ส่งรูปไปด้วย
+            };
+            let res = await callAPI({ action: "updatePatient", patient: p });
+            if(res.status === "success") { editModal.hide(); alert("อัปเดตข้อมูลสำเร็จ"); await fetchPatients(); renderPatientList(); }
+            
+            btn.innerHTML = "บันทึก";
+            btn.disabled = false;
+        }
+
+        async function deletePatient(hn) {
+            if(confirm(`ต้องการลบผู้ป่วย HN: ${hn} ใช่หรือไม่?`)) {
+                let res = await callAPI({ action: "deletePatient", hn: hn });
+                if(res.status === "success") { await fetchPatients(); renderPatientList(); }
+            }
+        }
+
+        async function saveVisit() {
+            const hn = document.getElementById('vHN').value;
+            const dateInput = document.getElementById('vDate').value;
+            if(!hn || !dateInput) return alert("ระบุ HN และ วันที่");
+
+            let btn = document.getElementById('btnSaveVisit');
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> กำลังบันทึก...`;
+            btn.disabled = true;
+
+            const fileInput = document.getElementById('vPhotos');
+            let base64Photos = [];
+            for (let i = 0; i < fileInput.files.length && i < 6; i++) {
+                base64Photos.push(await compressImage(fileInput.files[i]));
+            }
+
+            const payload = {
+                action: "saveVisit",
+                visit: {
+                    Visit_ID: "V" + Date.now().toString().slice(-6), HN: hn, 
+                    Visit_Date: formatToCE(dateInput), Staff_Email: currentUserEmail, 
+                    Details: document.getElementById('vDetails').value, Lat_Logged: document.getElementById('vLat').value, 
+                    Lng_Logged: document.getElementById('vLng').value, photos: base64Photos
+                }
+            };
+
+            let res = await callAPI(payload);
+            if(res.status === "success") { alert("บันทึกเยี่ยมบ้านสำเร็จ!"); clearForm('visit'); loadDashboard(); } 
+            btn.innerHTML = `<i class="bi bi-cloud-arrow-up"></i> บันทึกข้อมูลและรูปถ่าย`;
+            btn.disabled = false;
+        }
+
+        function getLocation(latId, lngId) {
+            navigator.geolocation.getCurrentPosition(pos => {
+                document.getElementById(latId).value = pos.coords.latitude;
+                document.getElementById(lngId).value = pos.coords.longitude;
+            });
+        }
+
+        async function fetchPatients() {
+            let res = await callAPI({ action: "getPatients" });
+            if(res.status === "success") { patientsList = res.data; renderPatientList(); }
+        }
+
+        // แปลงลิงก์ Google Drive View ให้เป็น Direct Download Image เพื่อให้แสดงใน <img> ได้
+function getDirectImageUrl(driveUrl) {
+            if(!driveUrl) return "";
+            let match = driveUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            if(match && match[1]) {
+                // เปลี่ยนมาใช้ Thumbnail API เลี่ยงการโดนบล็อกของ Google Drive
+                return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w400`;
+            }
+            return driveUrl;
+        }
+
+        function initMap() {
+            if(!map) {
+                map = L.map('map').setView([14.02, 99.53], 10); 
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                setTimeout(() => { map.invalidateSize(); loadMapData(); }, 400);
+            }
+        }
+
+        function loadMapData() {
+            if(!map || patientsList.length === 0) return;
+            map.eachLayer((layer) => { if (layer instanceof L.Marker) map.removeLayer(layer); });
+            
+            patientsList.forEach(p => {
+                if(p.Latitude && p.Longitude) {
+                    let navUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.Latitude},${p.Longitude}`;
+                    
+                    // แทรกรูป 2 รูปแรก พร้อมครอบลิงก์ <a> ให้กดดูรูปเต็มได้
+                    let imgHtml = "";
+                    if(p.Photo_1 || p.Photo_2) {
+                        imgHtml += "<div class='mt-2 mb-2 d-flex justify-content-between gap-1'>";
+                        if(p.Photo_1) {
+                            imgHtml += `<a href="${p.Photo_1}" target="_blank" class="w-50 text-decoration-none">
+                                            <img src="${getDirectImageUrl(p.Photo_1)}" class="map-img w-100" style="object-fit:cover; height:90px; border-radius:8px;" 
+                                            onerror="this.outerHTML='<div class=\\'btn btn-sm btn-outline-secondary w-100 h-100 d-flex align-items-center justify-content-center\\'><i class=\\'bi bi-image\\'></i> ดูรูป 1</div>'">
+                                        </a>`;
+                        }
+                        if(p.Photo_2) {
+                            imgHtml += `<a href="${p.Photo_2}" target="_blank" class="w-50 text-decoration-none">
+                                            <img src="${getDirectImageUrl(p.Photo_2)}" class="map-img w-100" style="object-fit:cover; height:90px; border-radius:8px;" 
+                                            onerror="this.outerHTML='<div class=\\'btn btn-sm btn-outline-secondary w-100 h-100 d-flex align-items-center justify-content-center\\'><i class=\\'bi bi-image\\'></i> ดูรูป 2</div>'">
+                                        </a>`;
+                        }
+                        imgHtml += "</div>";
+                    }
+
+                    let content = `<b>${p.Name}</b><br>
+                    <small>HN: ${p.HN}</small><br>
+                    <small><i class="bi bi-telephone-fill"></i> ${p.Phone || '-'}</small>
+                    ${imgHtml}
+                    <button class='btn btn-sm btn-primary w-100 mt-1 rounded-pill' onclick='window.open("${navUrl}")'><i class="bi bi-sign-turn-right-fill"></i> นำทาง</button>`;
+                    
+                    L.marker([p.Latitude, p.Longitude]).addTo(map).bindPopup(content, {minWidth: 220});
+                }
+            });
+        }
+        async function loadUsers() {
+            let res = await callAPI({ action: "getUsers" });
+            if(res.status === "success") {
+                const list = document.getElementById('userList');
+                list.innerHTML = "";
+                res.data.forEach(u => {
+                    if(u.Username) {
+                        list.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center bg-white border-0 border-bottom">
+                            <div><i class="bi bi-person-circle text-muted"></i> <strong>${u.Username}</strong> <span class="badge bg-light text-dark">${u.Role}</span><br><small class="text-muted ms-3">${u.Name}</small></div>
+                            <button class="btn btn-sm btn-outline-danger rounded-circle" onclick="deleteUser('${u.Username}')"><i class="bi bi-trash"></i></button>
+                        </li>`;
+                    }
+                });
+            }
+        }
+
+        async function addUser() {
+            const u = {
+                Username: document.getElementById('aUser').value, Password: document.getElementById('aPass').value,
+                Name: document.getElementById('aName').value, Role: document.getElementById('aRole').value,
+                Email: "-", Department: "-", Status: "Active"
+            };
+            if(!u.Username || !u.Password) return alert("กรอกข้อมูลบังคับ");
+            let res = await callAPI({ action: "addUser", user: u });
+            if(res.status === "success") { ['aUser','aPass','aName'].forEach(id => document.getElementById(id).value = ''); loadUsers(); }
+        }
+
+        async function deleteUser(user) {
+            if(confirm(`ต้องการลบ ${user}?`) && (await callAPI({ action: "deleteUser", username: user })).status === "success") loadUsers();
+        }
+    </script>
+</body>
+</html>
