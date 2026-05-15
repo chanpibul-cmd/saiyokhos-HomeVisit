@@ -3,381 +3,294 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบเยี่ยมบ้านผู้ป่วย</title>
-    <link href="[https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css](https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css)" rel="stylesheet">
-    <link rel="stylesheet" href="[https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css](https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css)">
-    <script src="[https://accounts.google.com/gsi/client](https://accounts.google.com/gsi/client)" async defer></script>
+    <title>ระบบเยี่ยมบ้าน</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { background-color: #f8f9fa; }
-        .hero-section { background: linear-gradient(135deg, #0d6efd, #0dcaf0); color: white; padding: 40px 0; border-radius: 0 0 20px 20px; }
-        .stat-card { border-left: 5px solid #0d6efd; }
-        #mapPreview { height: 200px; width: 100%; background-color: #e9ecef; display: flex; align-items: center; justify-content: center; color: #6c757d; border-radius: 8px; margin-top: 10px; }
+        #map { height: 400px; width: 100%; border-radius: 8px; }
+        .hidden { display: none !important; }
+        .nav-pills .nav-link { border-radius: 0; }
+        /* ซ่อนหน้าต่างๆ ไว้ก่อน */
+        #app-container { display: none; }
     </style>
 </head>
 <body>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-  <div class="container">
-    <a class="navbar-brand" href="#"><i class="bi bi-house-heart"></i> ระบบเยี่ยมบ้าน</a>
-    <div class="d-flex">
-      <button class="btn btn-outline-light" id="navLoginBtn" data-bs-toggle="modal" data-bs-target="#loginModal">เข้าสู่ระบบ</button>
-      <button class="btn btn-danger d-none" id="navLogoutBtn" onclick="location.reload()">ออกจากระบบ</button>
-    </div>
-  </div>
-</nav>
-
-<div class="container mt-4" id="publicDashboard">
-    <div class="hero-section text-center shadow-sm mb-4">
-        <h2>ยินดีต้อนรับสู่ระบบเยี่ยมบ้าน</h2>
-        <p>โรงพยาบาลไทรโยค - บริการดูแลผู้ป่วยถึงหน้าบ้าน</p>
-    </div>
-    
-    <div class="row">
-        <div class="col-md-6 mb-3">
-            <div class="card shadow-sm stat-card">
-                <div class="card-body">
-                    <h5 class="card-title text-muted">จำนวนผู้ป่วยขึ้นทะเบียน</h5>
-                    <h2 id="statPatients">กำลังโหลด...</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6 mb-3">
-            <div class="card shadow-sm stat-card" style="border-left-color: #198754;">
-                <div class="card-body">
-                    <h5 class="card-title text-muted">ยอดการลงพื้นที่เยี่ยมบ้าน</h5>
-                    <h2 id="statVisits">กำลังโหลด...</h2>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="alert alert-info mt-3">
-        <i class="bi bi-info-circle"></i> สำหรับเจ้าหน้าที่ กรุณาเข้าสู่ระบบเพื่อลงทะเบียนและบันทึกข้อมูลการเยี่ยมบ้าน
-    </div>
-</div>
-
-<div class="modal fade" id="loginModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title">เข้าสู่ระบบเจ้าหน้าที่</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body p-4">
-        <form id="standardLoginForm" onsubmit="event.preventDefault(); loginWithPassword();">
-            <div class="mb-3">
-                <label class="form-label">Username</label>
-                <input type="text" class="form-control" id="inputUsername" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Password</label>
-                <input type="password" class="form-control" id="inputPassword" required>
-            </div>
-            <button type="submit" class="btn btn-primary w-100" id="loginBtn">เข้าสู่ระบบ</button>
-        </form>
-        <hr class="my-4">
-        <div class="text-center">
-            <p class="text-muted mb-2">หรือเข้าสู่ระบบด้วย Gmail</p>
-            <div id="g_id_onload"
-                 data-client_id="ใส่_GOOGLE_CLIENT_ID_ของคุณที่นี่.apps.googleusercontent.com"
-                 data-callback="handleGoogleLogin"
-                 data-auto_prompt="false">
-            </div>
-            <div class="g_id_signin d-inline-block" data-type="standard"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="container mt-4 d-none" id="mainAppSection">
-    <div class="alert alert-success shadow-sm">
-        <i class="bi bi-person-check-fill"></i> <span id="welcomeMessage">ยินดีต้อนรับ</span>
-    </div>
-    
-    <ul class="nav nav-tabs" id="mainTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#visit" type="button">บันทึกการเยี่ยมบ้าน</button>
-        </li>
-        <li class="nav-item d-none" id="adminTabNav" role="presentation">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#admin" type="button">ระบบจัดการ (Admin)</button>
-        </li>
-    </ul>
-    
-    <div class="tab-content border border-top-0 p-4 bg-white shadow-sm rounded-bottom mb-5">
-        
-        <div class="tab-pane fade show active" id="visit" role="tabpanel">
-            <h4 class="mb-4">ฟอร์มบันทึกการเยี่ยมบ้าน</h4>
-            <form id="visitForm" onsubmit="event.preventDefault(); submitVisitForm();">
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">HN ผู้ป่วย *</label>
-                        <input type="text" class="form-control" id="v_hn" required>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">รายละเอียด / อาการ *</label>
-                        <textarea class="form-control" id="v_details" rows="2" required></textarea>
-                    </div>
-                </div>
-
-                <div class="card mb-4 bg-light">
+    <div id="login-container" class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-4">
+                <div class="card shadow-sm">
                     <div class="card-body">
-                        <h5><i class="bi bi-geo-alt-fill text-danger"></i> ข้อมูลตำแหน่งที่ตั้ง</h5>
-                        <button type="button" class="btn btn-outline-secondary mb-3" onclick="getLocation()"><i class="bi bi-crosshair"></i> ดึงพิกัดปัจจุบัน</button>
-                        <div class="row">
-                            <div class="col-6">
-                                <input type="text" class="form-control" id="v_lat" placeholder="Latitude" readonly required>
-                            </div>
-                            <div class="col-6">
-                                <input type="text" class="form-control" id="v_lng" placeholder="Longitude" readonly required>
-                            </div>
+                        <h5 class="text-center mb-4">เข้าสู่ระบบ</h5>
+                        <input type="text" id="username" class="form-control mb-3" placeholder="Username">
+                        <input type="password" id="password" class="form-control mb-3" placeholder="Password">
+                        <button class="btn btn-primary w-100" onclick="login()">เข้าสู่ระบบ</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-container" class="container-fluid p-0">
+        <ul class="nav nav-pills nav-fill bg-white border-bottom shadow-sm" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="patient-tab" data-bs-toggle="tab" data-bs-target="#patient" type="button" role="tab">ผู้ป่วย</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="visit-tab" data-bs-toggle="tab" data-bs-target="#visit" type="button" role="tab">เยี่ยมบ้าน</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="map-tab" data-bs-toggle="tab" data-bs-target="#mapView" type="button" role="tab" onclick="initMap()">แผนที่</button>
+            </li>
+        </ul>
+
+        <div class="tab-content p-3" id="myTabContent">
+            
+            <div class="tab-pane fade show active" id="patient" role="tabpanel">
+                <div class="card shadow-sm mb-3">
+                    <div class="card-body">
+                        <h6>ลงทะเบียนผู้ป่วยใหม่</h6>
+                        <input type="text" id="pHN" class="form-control mb-2" placeholder="HN">
+                        <input type="text" id="pName" class="form-control mb-2" placeholder="ชื่อ-สกุล">
+                        <input type="text" id="pCID" class="form-control mb-2" placeholder="เลขบัตรประชาชน">
+                        <textarea id="pAddress" class="form-control mb-2" placeholder="ที่อยู่"></textarea>
+                        <input type="text" id="pPhone" class="form-control mb-2" placeholder="เบอร์โทร">
+                        <input type="text" id="pDisease" class="form-control mb-2" placeholder="โรคประจำตัว">
+                        <div class="input-group mb-2">
+                            <input type="text" id="pLat" class="form-control" placeholder="ละติจูด (Lat)">
+                            <input type="text" id="pLng" class="form-control" placeholder="ลองจิจูด (Lng)">
+                            <button class="btn btn-outline-secondary" type="button" onclick="getCurrentLocationForPatient()">ปักหมุดปัจจุบัน</button>
                         </div>
-                        <div id="mapPreview"><i>กด "ดึงพิกัดปัจจุบัน" เพื่อแสดงตำแหน่ง</i></div>
+                        <button class="btn btn-success w-100" onclick="savePatient()">บันทึกผู้ป่วยใหม่</button>
                     </div>
                 </div>
+            </div>
 
-                <div class="card mb-4">
+            <div class="tab-pane fade" id="visit" role="tabpanel">
+                <div class="card shadow-sm">
                     <div class="card-body">
-                        <h5><i class="bi bi-camera-fill text-primary"></i> ถ่ายรูปบ้าน/ผู้ป่วย (สูงสุด 6 รูป)</h5>
-                        <input class="form-control mb-2" type="file" id="v_images" accept="image/*" multiple>
-                        <small class="text-muted">ระบบจะทำการบีบอัดภาพอัตโนมัติก่อนส่งเพื่อประหยัดพื้นที่</small>
-                        <div id="imagePreviewContainer" class="mt-3 d-flex flex-wrap gap-2"></div>
+                        <h6>บันทึกเยี่ยมบ้าน</h6>
+                        <input type="text" id="vHN" class="form-control mb-2" placeholder="HN ผู้ป่วย">
+                        <input type="date" id="vDate" class="form-control mb-2">
+                        <textarea id="vDetails" class="form-control mb-2" rows="3" placeholder="รายละเอียดการเยี่ยม"></textarea>
+                        
+                        <label class="form-label text-muted small">อัปโหลดรูป (สูงสุด 6 รูป)</label>
+                        <input type="file" id="vPhotos" class="form-control mb-2" accept="image/*" multiple>
+                        
+                        <div class="input-group mb-3">
+                            <input type="text" id="vLat" class="form-control" placeholder="Lat" readonly>
+                            <input type="text" id="vLng" class="form-control" placeholder="Lng" readonly>
+                            <button class="btn btn-info text-white" type="button" onclick="getVisitLocation()">เช็คพิกัด</button>
+                        </div>
+
+                        <button class="btn btn-primary w-100" onclick="saveVisit()" id="btnSaveVisit">บันทึกข้อมูลเยี่ยมบ้าน</button>
                     </div>
                 </div>
+            </div>
 
-                <button type="submit" class="btn btn-success w-100 btn-lg" id="submitVisitBtn">
-                    <i class="bi bi-save"></i> บันทึกข้อมูล
-                </button>
-            </form>
+            <div class="tab-pane fade" id="mapView" role="tabpanel">
+                <div id="map"></div>
+                <button class="btn btn-success w-100 mt-2" onclick="loadMapData()">รีเฟรชหมุดผู้ป่วย</button>
+            </div>
+
         </div>
-
-        <div class="tab-pane fade" id="admin" role="tabpanel">
-            <h4>สำหรับผู้ดูแลระบบ</h4>
-            <p>คุณสามารถจัดการผู้ใช้งานและดูรายงานเชิงลึกได้จาก Google Sheets โดยตรง หรือสามารถพัฒนาตารางข้อมูล (Data Table) เพิ่มเติมในส่วนนี้ได้</p>
-            <a href="#" class="btn btn-outline-primary">เปิด Google Sheets ฐานข้อมูล</a>
-        </div>
-
     </div>
-</div>
 
-<script src="[https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js](https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js)"></script>
-<script>
-// ==========================================
-// 1. ตั้งค่าพื้นฐาน
-// ==========================================
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw0lF6jCCxHufuHsbuVmYEmO6n3a4QcKEphavPcdSs_68c6cWGHi8BS6SVFQN5jROjyGA/exec";
-let currentUser = null; // เก็บข้อมูลผู้ใช้ที่ล็อกอิน
-let base64ImagesArray = []; // เก็บรูปภาพที่บีบอัดแล้ว
-
-// โหลดข้อมูล Dashboard ทันทีที่เปิดหน้าเว็บ
-document.addEventListener("DOMContentLoaded", loadPublicStats);
-
-// ==========================================
-// 2. ฟังก์ชัน Dashboard สาธารณะ
-// ==========================================
-function loadPublicStats() {
-    fetch(GAS_WEB_APP_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: "getPublicStats" }),
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-    })
-    .then(res => res.json())
-    .then(data => {
-        if(data.status === "success") {
-            document.getElementById("statPatients").innerText = data.totalPatients + " ราย";
-            document.getElementById("statVisits").innerText = data.totalVisits + " ครั้ง";
-        }
-    }).catch(err => console.log("Load Stats Error"));
-}
-
-// ==========================================
-// 3. ฟังก์ชันระบบ Login
-// ==========================================
-function loginWithPassword() {
-    const user = document.getElementById('inputUsername').value;
-    const pass = document.getElementById('inputPassword').value;
-    const btn = document.getElementById('loginBtn');
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> กำลังตรวจสอบ...';
-    btn.disabled = true;
+    <script>
+        // ใช้ Web App URL ตามที่คุณกำหนด
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzurrcUxFVN2UQfGAd5a7D1cOYZk-Jto-rUjwfhp45Apn9H8AksVlGAk1vQP83W6o0C4w/exec';
+        let currentUserEmail = "";
+        let patientsList = [];
+        let map;
 
-    fetch(GAS_WEB_APP_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: "loginStandard", username: user, password: pass }),
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-    })
-    .then(res => res.json())
-    .then(data => processLoginResult(data))
-    .catch(err => alert("เกิดข้อผิดพลาดในการเชื่อมต่อ"));
-}
-
-function handleGoogleLogin(response) {
-    const payload = JSON.parse(atob(response.credential.split('.')[1]));
-    fetch(GAS_WEB_APP_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: "loginGoogle", email: payload.email }),
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-    })
-    .then(res => res.json())
-    .then(data => processLoginResult(data));
-}
-
-function processLoginResult(data) {
-    if (data.status === "success") {
-        currentUser = data; // เก็บข้อมูลลงตัวแปร
-        
-        // ปิด Modal
-        bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide();
-        
-        // สลับหน้าจอ
-        document.getElementById("publicDashboard").classList.add("d-none");
-        document.getElementById("navLoginBtn").classList.add("d-none");
-        
-        document.getElementById("navLogoutBtn").classList.remove("d-none");
-        document.getElementById("mainAppSection").classList.remove("d-none");
-        document.getElementById("welcomeMessage").innerText = `เข้าสู่ระบบโดย: ${data.name} [${data.role}]`;
-        
-        // ถ้าเป็น Admin ให้เปิดแท็บ Admin
-        if (data.role === "Admin") {
-            document.getElementById("adminTabNav").classList.remove("d-none");
+        // API Call Helper
+        async function callAPI(payload) {
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            return await response.json();
         }
-    } else {
-        alert("ข้อมูลผู้ใช้งานไม่ถูกต้อง หรือไม่มีสิทธิ์เข้าถึงระบบ");
-        document.getElementById('loginBtn').innerHTML = "เข้าสู่ระบบ";
-        document.getElementById('loginBtn').disabled = false;
-    }
-}
 
-// ==========================================
-// 4. ฟังก์ชันพิกัด GPS (Geolocation)
-// ==========================================
-function getLocation() {
-    const mapPreview = document.getElementById("mapPreview");
-    if (navigator.geolocation) {
-        mapPreview.innerHTML = '<span class="spinner-border spinner-border-sm text-primary"></span> กำลังค้นหาตำแหน่ง...';
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const lat = position.coords.latitude;
-                const lng = position.coords.longitude;
-                document.getElementById('v_lat').value = lat;
-                document.getElementById('v_lng').value = lng;
-                
-                // สร้างลิงก์นำทาง Google Maps (ปุ่มกดแล้วเด้งเข้าแอปนำทาง)
-                const navLink = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-                mapPreview.innerHTML = `
-                    <div class="text-center">
-                        <p class="text-success mb-1"><i class="bi bi-check-circle-fill"></i> ได้รับพิกัดแล้ว</p>
-                        <a href="${navLink}" target="_blank" class="btn btn-sm btn-primary"><i class="bi bi-geo-alt"></i> ทดลองเปิดระบบนำทาง (Google Maps)</a>
-                    </div>`;
-            },
-            (error) => { mapPreview.innerHTML = '<span class="text-danger">ไม่สามารถดึงพิกัดได้ กรุณาเปิด GPS</span>'; },
-            { enableHighAccuracy: true }
-        );
-    } else {
-        alert("เบราว์เซอร์ของคุณไม่รองรับการดึงพิกัด");
-    }
-}
+        // 1. ระบบ Login
+        async function login() {
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            if(!u || !p) return alert("กรุณากรอกข้อมูล");
+            
+            let res = await callAPI({ action: "login", username: u, password: p });
+            if(res.status === "success") {
+                currentUserEmail = res.email;
+                document.getElementById('login-container').classList.add('hidden');
+                document.getElementById('app-container').style.display = 'block';
+                fetchPatients(); // โหลดข้อมูลผู้ป่วยทันที
+            } else {
+                alert(res.message);
+            }
+        }
 
-// ==========================================
-// 5. ฟังก์ชันบีบอัดรูปภาพด้วย Canvas (Image Compression)
-// ==========================================
-document.getElementById('v_images').addEventListener('change', async function(e) {
-    const files = e.target.files;
-    const previewContainer = document.getElementById('imagePreviewContainer');
-    previewContainer.innerHTML = '';
-    base64ImagesArray = [];
+        // 2. แปลงปี พ.ศ. เป็น ค.ศ. (จัดการวันที่)
+        function formatToCE(dateStr) {
+            if (!dateStr) return "";
+            let parts = dateStr.split("-");
+            let year = parseInt(parts[0]);
+            if (year > 2500) year -= 543;
+            return `${year}-${parts[1]}-${parts[2]}`;
+        }
 
-    if(files.length > 6) {
-        alert("อัปโหลดได้สูงสุด 6 รูปเท่านั้นครับ");
-        this.value = ""; // รีเซ็ต
-        return;
-    }
+        // 3. ระบบย่อรูปภาพ (ลดขนาดไฟล์ก่อนส่งประหยัดพื้นที่)
+        function compressImage(file, maxSize = 800) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = event => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
 
-    for(let i=0; i<files.length; i++) {
-        let file = files[i];
-        let compressedBase64 = await compressImage(file);
-        base64ImagesArray.push(compressedBase64);
-        
-        // แสดงรูปพรีวิวเล็กๆ
-        let imgTag = document.createElement('img');
-        imgTag.src = compressedBase64;
-        imgTag.style.width = "80px";
-        imgTag.style.height = "80px";
-        imgTag.style.objectFit = "cover";
-        imgTag.className = "rounded border";
-        previewContainer.appendChild(imgTag);
-    }
-});
+                        if (width > height) {
+                            if (width > maxSize) { height *= maxSize / width; width = maxSize; }
+                        } else {
+                            if (height > maxSize) { width *= maxSize / height; height = maxSize; }
+                        }
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.6)); // ย่อคุณภาพ 60%
+                    };
+                };
+            });
+        }
 
-// ฟังก์ชัน Resize ลดขนาดรูปลงเหลือความกว้าง 800px และลด Quality 70%
-function compressImage(file) {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 800;
-                let width = img.width;
-                let height = img.height;
-                
-                if (width > MAX_WIDTH) {
-                    height = Math.round((height * MAX_WIDTH) / width);
-                    width = MAX_WIDTH;
+        // 4. บันทึกเยี่ยมบ้าน
+        async function saveVisit() {
+            const hn = document.getElementById('vHN').value;
+            const dateInput = document.getElementById('vDate').value;
+            const details = document.getElementById('vDetails').value;
+            const lat = document.getElementById('vLat').value;
+            const lng = document.getElementById('vLng').value;
+            const fileInput = document.getElementById('vPhotos');
+
+            if(!hn || !dateInput) return alert("กรุณาระบุ HN และ วันที่");
+            if(fileInput.files.length > 6) return alert("อัปโหลดได้สูงสุด 6 รูปเท่านั้น");
+
+            document.getElementById('btnSaveVisit').innerText = "กำลังบันทึก...";
+            document.getElementById('btnSaveVisit').disabled = true;
+
+            const finalDate = formatToCE(dateInput); // ตรวจสอบและแปลงปี
+            const visitId = "V" + new Date().getTime().toString().slice(-6); // Gen ID แบบสั้น
+            
+            let base64Photos = [];
+            for (let i = 0; i < fileInput.files.length; i++) {
+                let base64Str = await compressImage(fileInput.files[i]);
+                base64Photos.push(base64Str);
+            }
+
+            const payload = {
+                action: "saveVisit",
+                visit: {
+                    Visit_ID: visitId, HN: hn, Visit_Date: finalDate, 
+                    Staff_Email: currentUserEmail, Details: details, 
+                    Lat_Logged: lat, Lng_Logged: lng, photos: base64Photos
                 }
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                // แปลงเป็น jpeg ที่ quality 0.7
-                resolve(canvas.toDataURL('image/jpeg', 0.7));
             };
-            img.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
-    });
-}
 
-// ==========================================
-// 6. ฟังก์ชันส่งข้อมูลการเยี่ยมบ้าน
-// ==========================================
-function submitVisitForm() {
-    const btn = document.getElementById('submitVisitBtn');
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> กำลังบันทึกข้อมูล และอัปโหลดรูปภาพ...';
-    btn.disabled = true;
-
-    const payload = {
-        action: "saveVisit",
-        staffName: currentUser.name,
-        hn: document.getElementById('v_hn').value,
-        details: document.getElementById('v_details').value,
-        lat: document.getElementById('v_lat').value,
-        lng: document.getElementById('v_lng').value,
-        images: base64ImagesArray
-    };
-
-    fetch(GAS_WEB_APP_URL, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-    })
-    .then(res => res.json())
-    .then(data => {
-        if(data.status === "success") {
-            alert("บันทึกข้อมูลและอัปโหลดรูปภาพสำเร็จ!");
-            document.getElementById('visitForm').reset();
-            document.getElementById('imagePreviewContainer').innerHTML = '';
-            document.getElementById('mapPreview').innerHTML = '<i>กด "ดึงพิกัดปัจจุบัน" เพื่อแสดงตำแหน่ง</i>';
-            base64ImagesArray = [];
-        } else {
-            alert("เกิดข้อผิดพลาด: " + data.message);
+            let res = await callAPI(payload);
+            if(res.status === "success") {
+                alert("บันทึกข้อมูลและอัปโหลดรูปสำเร็จ!");
+                document.getElementById('vHN').value = "";
+                document.getElementById('vDetails').value = "";
+                fileInput.value = "";
+            } else {
+                alert("เกิดข้อผิดพลาด");
+            }
+            document.getElementById('btnSaveVisit').innerText = "บันทึกข้อมูลเยี่ยมบ้าน";
+            document.getElementById('btnSaveVisit').disabled = false;
         }
-    })
-    .catch(err => alert("การเชื่อมต่อล้มเหลว"))
-    .finally(() => {
-        btn.innerHTML = '<i class="bi bi-save"></i> บันทึกข้อมูล';
-        btn.disabled = false;
-    });
-}
-</script>
+
+        // 5. บันทึกผู้ป่วยใหม่
+        async function savePatient() {
+            const p = {
+                HN: document.getElementById('pHN').value,
+                Name: document.getElementById('pName').value,
+                CID: document.getElementById('pCID').value,
+                Address: document.getElementById('pAddress').value,
+                Phone: document.getElementById('pPhone').value,
+                Chronic_Disease: document.getElementById('pDisease').value,
+                Latitude: document.getElementById('pLat').value,
+                Longitude: document.getElementById('pLng').value
+            };
+            if(!p.HN || !p.Name) return alert("กรุณาระบุ HN และ ชื่อ");
+            
+            let res = await callAPI({ action: "savePatient", patient: p });
+            if(res.status === "success") {
+                alert("บันทึกผู้ป่วยใหม่สำเร็จ");
+                fetchPatients(); // โหลดข้อมูลใหม่
+            }
+        }
+
+        // 6. ดึงข้อมูลผู้ป่วย
+        async function fetchPatients() {
+            let res = await callAPI({ action: "getPatients" });
+            if(res.status === "success") {
+                patientsList = res.data;
+            }
+        }
+
+        // 7. พิกัด GPS สำหรับฟอร์ม
+        function getCurrentLocationForPatient() {
+            navigator.geolocation.getCurrentPosition(pos => {
+                document.getElementById('pLat').value = pos.coords.latitude;
+                document.getElementById('pLng').value = pos.coords.longitude;
+            });
+        }
+
+        function getVisitLocation() {
+            navigator.geolocation.getCurrentPosition(pos => {
+                document.getElementById('vLat').value = pos.coords.latitude;
+                document.getElementById('vLng').value = pos.coords.longitude;
+            });
+        }
+
+        // 8. ระบบแผนที่ (Leaflet) + นำทางไป Google Maps
+        function initMap() {
+            if(!map) {
+                // เซ็ตค่าเริ่มต้นแผนที่
+                map = L.map('map').setView([14.02, 99.53], 10);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19
+                }).addTo(map);
+                loadMapData();
+            }
+        }
+
+        function loadMapData() {
+            if(!map || patientsList.length === 0) return;
+            
+            // ลบหมุดเก่า
+            map.eachLayer((layer) => {
+                if (layer instanceof L.Marker) { map.removeLayer(layer); }
+            });
+
+            patientsList.forEach(p => {
+                if(p.Latitude && p.Longitude) {
+                    // ปุ่มเปิด Google Maps นำทาง
+                    let navLink = `<br><button class='btn btn-sm btn-primary mt-2' onclick='window.open("https://www.google.com/maps/dir/?api=1&destination=${p.Latitude},${p.Longitude}")'>นำทางด้วย Google Maps</button>`;
+                    
+                    L.marker([p.Latitude, p.Longitude])
+                     .addTo(map)
+                     .bindPopup(`<b>${p.Name}</b><br>HN: ${p.HN}<br>ที่อยู่: ${p.Address}${navLink}`);
+                }
+            });
+        }
+    </script>
 </body>
 </html>
