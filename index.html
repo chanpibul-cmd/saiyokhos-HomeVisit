@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบเยี่ยมบ้านผู้ป่วย</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body class="bg-light">
+
+<div class="container mt-5" id="loginSection">
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <h3>เข้าสู่ระบบเยี่ยมบ้าน</h3>
+            <div id="g_id_onload"
+                 data-client_id="YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com"
+                 data-callback="handleCredentialResponse"
+                 data-auto_prompt="false">
+            </div>
+            <div class="g_id_signin" data-type="standard"></div>
+        </div>
+    </div>
+</div>
+
+<div class="container mt-4 d-none" id="mainAppSection">
+    <h4 id="welcomeMessage">ยินดีต้อนรับ</h4>
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#visit" type="button" role="tab">ลงทะเบียน & เยี่ยมบ้าน</button>
+        </li>
+        <li class="nav-item d-none" id="adminTabNav" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#admin" type="button" role="tab">ระบบจัดการ Admin</button>
+        </li>
+    </ul>
+    <div class="tab-content border border-top-0 p-3 bg-white">
+        <div class="tab-pane fade show active" id="visit" role="tabpanel">
+            <p>ฟอร์มปักหมุดแผนที่และถ่ายรูปบ้าน (สูงสุด 6 รูป)</p>
+        </div>
+        <div class="tab-pane fade" id="admin" role="tabpanel">
+            <p>หน้าสรุปข้อมูลและจัดการผู้ใช้งานสำหรับ Admin</p>
+        </div>
+    </div>
+</div>
+
+<script>
+// ฟังก์ชันนี้จะถูกเรียกอัตโนมัติเมื่อผู้ใช้ล็อกอินผ่านปุ่ม Google สำเร็จ
+function handleCredentialResponse(response) {
+    // ถอดรหัส JWT เพื่อเอา Email ออกมา
+    const responsePayload = decodeJwtResponse(response.credential);
+    const userEmail = responsePayload.email;
+
+    console.log("ล็อกอิน Gmail ผ่านแล้ว อีเมล:", userEmail);
+    
+    // ส่งอีเมลไปตรวจสอบสิทธิ์ที่ Google Apps Script API (ระบบที่ 2)
+    verifyUserRole(userEmail);
+}
+
+function verifyUserRole(email) {
+    // เอา URL Web App ของคุณที่ได้จากการ Deploy GAS มาใส่ที่นี่
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycby9FptEv48jzRchqjj6hpcnvlTOSMxW37W_Mv9mnSVj8ZhlPPFfglcqaL69zygTSFoDuA/exec"; 
+
+    fetch(GAS_WEB_APP_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: "checkLogin", email: email }),
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' } // หลีกเลี่ยง CORS preflight
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.status === "success") {
+            // ซ่อนหน้า Login แสดงหน้า App หลัก
+            document.getElementById("loginSection").classList.add("d-none");
+            document.getElementById("mainAppSection").classList.remove("d-none");
+            document.getElementById("welcomeMessage").innerText = `ยินดีต้อนรับคุณ ${data.name} (สิทธิ์: ${data.role})`;
+            
+            // เปิดแท็บ Admin หากเป็น Admin
+            if(data.role === "Admin") {
+                document.getElementById("adminTabNav").classList.remove("d-none");
+            }
+        } else {
+            alert("อีเมล " + email + " ไม่มีสิทธิ์เข้าใช้งานระบบ กรุณาติดต่อผู้ดูแล");
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+// ฟังก์ชันเสริมสำหรับถอดรหัส JWT (Google Token)
+function decodeJwtResponse(token) {
+    var base64Url = token.split('.')[1];
+    var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+}
+</script>
+</body>
+</html>
